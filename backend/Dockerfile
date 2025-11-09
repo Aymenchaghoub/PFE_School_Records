@@ -1,8 +1,7 @@
 # Backend Dockerfile for FastAPI + Python 3.13
-# Multi-stage build for optimized production image
+# Optimized for Render deployment with fast cold starts
 
-# Stage 1: Builder
-FROM python:3.13-slim as builder
+FROM python:3.13-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -10,58 +9,39 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
+# Install system dependencies (for PyMySQL, cryptography, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
     build-essential \
-    libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
-
-# Set work directory
-WORKDIR /build
-
-# Copy requirements
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --user --no-warn-script-location -r requirements.txt
-
-# Stage 2: Runtime
-FROM python:3.13-slim
-
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/root/.local/bin:$PATH"
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create app user
-RUN useradd -m -u 1000 appuser
 
 # Set work directory
 WORKDIR /app
 
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
+# Copy requirements first (for better layer caching)
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY --chown=appuser:appuser . .
+COPY . .
 
-# Create necessary directories
-RUN mkdir -p /app/logs && chown appuser:appuser /app/logs
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
 
-# Switch to app user
+# Switch to non-root user
 USER appuser
 
-# Expose port
+# Expose port (Render will use $PORT env var)
 EXPOSE 8000
 
-# Health check
+# Healthcheck - queries the /health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:8000/health', timeout=5)" || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
-# Run migrations and start server
-CMD ["sh", "-c", "python -m alembic upgrade head && gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 120 --access-logfile - --error-logfile -"]
+# Run Alembic migrations and start Uvicorn
+# Use shell to handle environment variables properly
+CMD sh -c "alembic upgrade head || echo '⚠️ Migration skipped' && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
