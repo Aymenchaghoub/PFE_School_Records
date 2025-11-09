@@ -24,7 +24,7 @@ services:
       - key: ALGORITHM
         value: "HS256"
       - key: CORS_ORIGINS
-        value: '["http://localhost:5173","https://school-records-aymen.netlify.app"]'
+        value: '["http://localhost:5173","https://school-management-pfe.netlify.app"]'
       - key: API_V1_PREFIX
         value: "/api"
       - key: ENVIRONMENT
