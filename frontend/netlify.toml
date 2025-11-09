@@ -1,0 +1,74 @@
+# Netlify configuration for React + Vite frontend
+# Documentation: https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  # Build command
+  command = "npm run build"
+  
+  # Output directory
+  publish = "dist"
+  
+  # Functions directory (if using Netlify Functions)
+  # functions = "netlify/functions"
+
+[build.environment]
+  # Node.js version
+  NODE_VERSION = "20"
+  
+  # Build environment variables
+  VITE_API_URL = "https://school-records-backend.onrender.com"
+  VITE_APP_NAME = "School Records Management"
+  VITE_APP_VERSION = "1.0.0"
+  VITE_ENABLE_ANALYTICS = "false"
+
+# Redirect all requests to index.html for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Plugin configuration
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
+
+# Context-specific build settings
+[context.production]
+  command = "npm run build"
+  
+[context.deploy-preview]
+  command = "npm run build:dev"
+  
+[context.branch-deploy]
+  command = "npm run build:dev"
+
+# Development server settings (for Netlify Dev)
+[dev]
+  command = "npm run dev"
+  port = 5173
+  targetPort = 5173
+  autoLaunch = false

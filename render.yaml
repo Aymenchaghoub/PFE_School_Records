@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: school-records-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: |
+      cd backend
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: |
+      cd backend
+      python -m alembic upgrade head
+      gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_EXPIRE_MINUTES
+        value: "60"
+      - key: JWT_REFRESH_EXPIRE_DAYS
+        value: "7"
+      - key: ALGORITHM
+        value: "HS256"
+      - key: CORS_ORIGINS
+        value: '["https://pfc.netlify.app","http://localhost:5173"]'
+      - key: API_V1_PREFIX
+        value: "/api"
+      - key: ENVIRONMENT
+        value: "production"
+      - key: PYTHON_VERSION
+        value: "3.13.0"
+
